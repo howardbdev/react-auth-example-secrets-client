@@ -3,12 +3,13 @@ import './App.css';
 import Secrets from './components/Secrets.js'
 import Login from "./components/Login"
 import Logout from "./components/Logout"
+import { connect } from 'react-redux'
+import { getCurrentUser } from './actions/currentUser.js'
 
 class App extends React.Component {
   constructor(){
     super()
     this.state = {
-      currentUser: null,
       loginForm: {
         email: "",
         password: ""
@@ -18,25 +19,7 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    const token = localStorage.getItem("token")
-    if (token) {
-      fetch("http://localhost:3001/get_current_user", {
-        headers: {
-          "Authorization": token
-        }
-      })
-      .then(r => r.json())
-      .then(resp => {
-        if (resp.error) {
-          alert(resp.error)
-        } else {
-          this.setState({
-            currentUser: resp.user
-          })
-        }
-      })
-      .catch(console.log)
-    }
+    this.props.getCurrentUser()
   }
 
   handleLoginFormChange = event => {
@@ -57,6 +40,7 @@ class App extends React.Component {
     const userInfo = this.state.loginForm
     const headers = {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json"
       },
@@ -79,7 +63,6 @@ class App extends React.Component {
               password: ""
             }
           })
-          localStorage.setItem('token', resp.jwt)
         }
       })
       .catch(console.log)
@@ -87,7 +70,15 @@ class App extends React.Component {
 
   logout = event => {
     event.preventDefault()
-    localStorage.removeItem("token")
+    fetch("http://localhost:3001/logout", {
+      method: "DELETE",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+      .then(r => r.json())
+      .then(resp => alert(resp.message))
     this.setState({
       currentUser: null,
       secrets: []
@@ -97,8 +88,9 @@ class App extends React.Component {
   getSecrets = () => {
     const token = localStorage.getItem("token")
     fetch("http://localhost:3001/secrets", {
+      credentials: "include",
       headers: {
-        "Authorization": token
+        "Content-Type": "application/json"
       }
     })
       .then(r => r.json())
@@ -116,7 +108,7 @@ class App extends React.Component {
   }
 
   render() {
-    const { currentUser } = this.state
+    const { currentUser } = this.props
     return (
     <div className="App">
       <h2>{ currentUser ?
@@ -126,7 +118,7 @@ class App extends React.Component {
 
 
       {
-        this.state.currentUser ?
+        currentUser ?
           <Logout logout={this.logout}/> :
           <Login
             handleLoginFormChange={this.handleLoginFormChange}
@@ -142,4 +134,10 @@ class App extends React.Component {
   }
 }
 
-export default App;
+const mapStateToProps = ({ currentUser }) => {
+  return {
+    currentUser
+  }
+}
+
+export default connect(mapStateToProps, { getCurrentUser: getCurrentUser })(App);
